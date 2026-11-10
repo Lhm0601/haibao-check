@@ -100,6 +100,7 @@
         <button id="btnClear">清空</button>
       </div>
     </div>
+    <div id="platHint" hidden style="margin-top:12px; padding:10px 12px; border-radius:10px; background:#fdf8ee; border:1px solid #f0e0c4; font-size:14px"></div>
     <p class="muted" style="margin:10px 0 0">点任意一行看它的大图裁切预览和细节检查。对比度需手动取色，只在单张详情里做。</p>
     <div style="overflow-x:auto; margin-top:12px">
       <table>
@@ -225,6 +226,61 @@
     var all=state.items.length, ok=0,warn=0,bad=0;
     state.items.forEach(function(i){ if(i.sev==='ok')ok++; else if(i.sev==='warn')warn++; else bad++; });
     $('cntAll').textContent=all; $('cntOk').textContent=ok; $('cntWarn').textContent=warn; $('cntBad').textContent=bad;
+    suggestPlatform();
+  }
+
+  // 这批图的「比例众数」→ 反推最像哪个平台；当前平台一张都不过时才提示
+  function suggestPlatform(){
+    var hint=$('platHint');
+    if(state.items.length<2 || !state.items[0].ratioText){ hint.hidden=true; return; }
+    var curOk=state.items.filter(function(i){ return i.sev==='ok'; }).length;
+    if(curOk>0){ hint.hidden=true; return; }
+
+    // 比例聚类（0.03 相对容差），保留首个比例
+    var clusters=[];
+    state.items.forEach(function(it){
+      var r=it.w/it.h, hit=null;
+      for(var i=0;i<clusters.length;i++){
+        if(Math.abs(clusters[i].r-r)/clusters[i].r<0.03){ hit=clusters[i]; break; }
+      }
+      if(hit) hit.n++; else clusters.push({r:r,n:1});
+    });
+    clusters.sort(function(a,b){ return b.n-a.n; });
+    var top=clusters[0];
+
+    // 情况一：多数图同一比例 → 建议切平台
+    if(top.n>=2){
+      var best=null,bestDiff=1e9;
+      PLATFORMS.forEach(function(p2){
+        var d=Math.abs(top.r-(p2.w/p2.h))/(p2.w/p2.h);
+        if(d<bestDiff){ bestDiff=d; best=p2; }
+      });
+      if(best && best.id!==state.platform.id && bestDiff<=0.15){
+        hint.hidden=false;
+        hint.innerHTML='这批图里 <b>'+top.n+' 张</b>是同一比例，更接近 <b>'+best.name+'</b>。'+
+          '当前选的是「'+state.platform.name+'」，所以基本都判不合格 —— '+
+          '<button class="plat" id="hintSwitch" style="margin-left:6px">切到 '+best.name+'</button>';
+        var btn=$('hintSwitch');
+        if(btn) btn.addEventListener('click',function(){
+          state.platform=best;
+          Array.prototype.forEach.call(platBox.children,function(c){ c.classList.remove('on'); });
+          Array.prototype.forEach.call(platBox.children,function(c){ if(c.textContent===best.name) c.classList.add('on'); });
+          recompute(); renderTable(); if(state.sel>=0) showDetail(state.sel);
+        });
+        return;
+      }
+    }
+
+    // 情况二：比例很杂（每张都不一样）→ 多半混了素材图
+    if(clusters.length>=Math.max(3, Math.ceil(state.items.length*0.7))){
+      hint.hidden=false;
+      hint.innerHTML='这批图有 <b>'+clusters.length+' 种不同比例</b>，没有统一目标 —— '+
+        '多半把<b>素材图/示意图</b>也拖进来了。建议只拖成品图，或者逐张用'+
+        ' <a href="../"><b>单张检查</b></a> 看。';
+      return;
+    }
+
+    hint.hidden=true;
   }
 
   function renderTable(){
