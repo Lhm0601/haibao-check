@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lhm0601.github.io/haibao-check/sitemap.xml
