@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="msvalidate.01" content="D124EC2DB61E16C3EAE2722FBC812C4A">
+<link rel="canonical" href="https://lhm0601.github.io/haibao-check/batch/">
+<title>海报批量自检 — 一次查一批图的比例、尺寸、体积</title>
+<meta name="description" content="把一整批海报或封面拖进来，一次出一张汇总表：哪几张比例不对、哪几张尺寸不够、哪几张文件超限，可导出 CSV。全部在浏览器本地完成，图片不上传。">
+<meta name="theme-color" content="#0e2a52">
+<meta property="og:type" content="website">
+<meta property="og:title" content="海报批量自检 — 一次查一批图">
+<meta property="og:description" content="拖进一整批图，一次出汇总表：比例、尺寸、体积是否合规，可导出 CSV。图片不上传。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e2a52'/%3E%3Crect x='14' y='20' width='36' height='24' rx='3' fill='none' stroke='%2335b8be' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23f4f1ea'/%3E%3C/svg%3E">
+<style>
+  :root{ --ink:#12161c; --muted:#5b6673; --line:#e3e7ec; --bg:#f6f7f9; --card:#fff;
+    --brand:#0e2a52; --brand-2:#35b8be; --ok:#0f8a4d; --warn:#b7791f; --bad:#c0392b; --radius:14px; }
+  *{box-sizing:border-box}
+  body{margin:0; font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased}
+  header{padding:24px 20px 6px; max-width:1180px; margin:0 auto}
+  h1{font-size:24px; margin:0 0 6px}
+  .sub{color:var(--muted); margin:0 0 10px}
+  .privacy{display:inline-block; font-size:13px; color:#0f8a4d; background:#e8f6ee; border:1px solid #c9e9d7;
+    padding:4px 10px; border-radius:999px}
+  main{max-width:1180px; margin:0 auto; padding:10px 20px 40px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:16px}
+  .card h2{font-size:13px; letter-spacing:.05em; color:var(--muted); margin:0 0 12px; text-transform:uppercase}
+  .platforms{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px}
+  .plat{font-size:13px; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:#fff; cursor:pointer}
+  .plat.on{background:var(--brand); color:#fff; border-color:var(--brand)}
+  #drop{border:2px dashed var(--line); border-radius:12px; padding:26px; text-align:center; color:var(--muted); cursor:pointer}
+  #drop.drag{border-color:var(--brand-2); background:#f3fbfb}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  button{font:inherit; border:1px solid var(--line); background:#fff; padding:8px 12px; border-radius:10px; cursor:pointer}
+  button:hover{background:#fafbfc}
+  button.primary{background:var(--brand); color:#fff; border-color:var(--brand)}
+  button:disabled{opacity:.45; cursor:not-allowed}
+  .summary{display:flex; gap:18px; flex-wrap:wrap; align-items:center; padding:12px; border-radius:12px; background:#fafbfc; border:1px solid var(--line)}
+  .summary b{font-size:22px; font-variant-numeric:tabular-nums}
+  .summary .ok b{color:var(--ok)} .summary .warn b{color:var(--warn)} .summary .bad b{color:var(--bad)}
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th,td{padding:9px 8px; border-bottom:1px solid #f0f2f5; text-align:left; vertical-align:middle}
+  th{font-size:12px; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; border-bottom:1px solid var(--line)}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#fafbfc}
+  tbody tr.sel{background:#eef6ff}
+  .thumb{width:44px; height:44px; border-radius:6px; object-fit:cover; background:#f0f2f5; display:block}
+  .name{max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .tag{font-size:12px; padding:2px 8px; border-radius:999px; white-space:nowrap}
+  .tag.ok{color:var(--ok); background:#eaf7f0} .tag.warn{color:var(--warn); background:#fdf5e6} .tag.bad{color:var(--bad); background:#fdecea}
+  .issues{color:var(--muted); font-size:13px}
+  #detail{display:none}
+  .detailGrid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px}
+  @media (max-width:820px){ .detailGrid{grid-template-columns:1fr} }
+  canvas{max-width:100%; height:auto; border-radius:10px; background:#fff; cursor:crosshair}
+  .pair{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:8px 0}
+  .pair label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px}
+  .pair input[type=color]{width:100%; height:38px; border:1px solid var(--line); border-radius:10px; background:#fff; padding:2px}
+  .ratio{font-size:26px; font-weight:700; font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted); font-size:13px}
+  ul.checks{list-style:none; padding:0; margin:8px 0 0}
+  ul.checks li{display:grid; grid-template-columns:20px 1fr; gap:8px; padding:7px 0; border-top:1px solid #f0f2f5; font-size:14px}
+  ul.checks li:first-child{border-top:0}
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:0 20px 30px}
+  .toast{position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(16px); background:#12161c; color:#fff;
+    padding:9px 16px; border-radius:999px; font-size:13px; opacity:0; pointer-events:none; transition:.25s; z-index:99}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  a{color:var(--brand)}
+</style>
+</head>
+<body>
+<header>
+  <h1>海报 / 封面 批量自检</h1>
+  <p class="sub">把一整批图拖进来，一次出汇总表：哪几张比例不对、哪几张尺寸不够、哪几张文件超限 —— 可导出 CSV。</p>
+  <span class="privacy">🔒 图片只在你的浏览器里处理，不上传、不保存</span>
+  <p class="sub" style="margin-top:10px"><a href="../">← 回到单张详细检查</a></p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. 目标平台</h2>
+    <div class="platforms" id="plats"></div>
+    <div id="drop" tabindex="0" role="button" aria-label="选择或拖入多张图片">
+      <p><strong>点击选择</strong> 或把多张图一起拖进来</p>
+      <p class="muted">支持 jpg / png / webp / gif；一次几十张没问题</p>
+    </div>
+  </section>
+
+  <section class="card" id="resultCard" hidden>
+    <h2>2. 汇总</h2>
+    <div class="summary">
+      <div>共 <b id="cntAll">0</b> 张</div>
+      <div class="ok">✅ 通过 <b id="cntOk">0</b></div>
+      <div class="warn">⚠️ 提醒 <b id="cntWarn">0</b></div>
+      <div class="bad">❌ 不合格 <b id="cntBad">0</b></div>
+      <div style="margin-left:auto" class="row">
+        <button id="btnCsv" class="primary">导出 CSV</button>
+        <button id="btnCopyAll">复制清单</button>
+        <button id="btnClear">清空</button>
+      </div>
+    </div>
+    <p class="muted" style="margin:10px 0 0">点任意一行看它的大图裁切预览和细节检查。对比度需手动取色，只在单张详情里做。</p>
+    <div style="overflow-x:auto; margin-top:12px">
+      <table>
+        <thead><tr><th>预览</th><th>文件</th><th>尺寸</th><th>比例</th><th>体积</th><th>判定</th><th>主要问题</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" id="detail">
+    <h2>3. 单张详情</h2>
+    <div class="detailGrid">
+      <div>
+        <div id="detailTitle" class="muted" style="margin-bottom:8px"></div>
+        <canvas id="canvas"></canvas>
+        <p class="muted" style="margin:8px 0 0">压暗区域＝会被裁掉的部分；虚线内是建议安全边距。点图取色。</p>
+      </div>
+      <div>
+        <ul class="checks" id="checkList"></ul>
+        <div style="margin-top:12px">
+          <div class="pair">
+            <div><label>文字色</label><input type="color" id="fg" value="#12161c"></div>
+            <div><label>背景色</label><input type="color" id="bg" value="#ffffff"></div>
+          </div>
+          <div class="ratio" id="cRatio">21.00<span class="muted" style="font-size:13px"> : 1</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>单文件工具，无需安装；数据不出本机。</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(id){return document.getElementById(id);};
+  var PLATFORMS=[
+    {id:'xhs',name:'小红书 3:4',w:1242,h:1660},
+    {id:'gzh',name:'公众号首图 2.35:1',w:900,h:383},
+    {id:'moment',name:'朋友圈 1:1',w:1080,h:1080},
+    {id:'sph',name:'视频号 16:9',w:1080,h:608},
+    {id:'dy',name:'抖音 9:16',w:1080,h:1920}
+  ];
+  var MAX_MB=10;
+  var state={platform:PLATFORMS[0], items:[], sel:-1};
+  var canvas=$('canvas'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+  var pixels=null, pickMode='fg';
+
+  function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('show');
+    clearTimeout(toast._t); toast._t=setTimeout(function(){t.classList.remove('show');},1700); }
+  function fmtRatio(w,h){ var r=w/h;
+    var known=[[1,'1:1'],[3/4,'3:4'],[4/3,'4:3'],[16/9,'16:9'],[9/16,'9:16'],[2.35,'2.35:1']];
+    for(var i=0;i<known.length;i++){ if(Math.abs(r-known[i][0])/known[i][0]<0.02) return known[i][1]; }
+    return r>=1?(r.toFixed(2)+':1'):('1:'+(1/r).toFixed(2));
+  }
+  function lum(r,g,b){ var f=function(c){c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);};
+    return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b); }
+  function parseHex(h){ h=(h||'').replace('#','');
+    if(/^[0-9a-f]{6}$/i.test(h)) return {r:parseInt(h.substr(0,2),16),g:parseInt(h.substr(2,2),16),b:parseInt(h.substr(4,2),16)};
+    return {r:0,g:0,b:0}; }
+  function contrast(a,b){ var l1=lum(a.r,a.g,a.b),l2=lum(b.r,b.g,b.b);
+    var hi=Math.max(l1,l2),lo=Math.min(l1,l2); return (hi+0.05)/(lo+0.05); }
+  function toHex(r,g,b){ var h=function(n){var s=n.toString(16);return s.length===1?'0'+s:s;}; return '#'+h(r)+h(g)+h(b); }
+  function copyText(t){ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){toast('已复制');},fb); } else fb();
+    function fb(){ var ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');toast('已复制');}catch(e){toast('复制失败');} document.body.removeChild(ta); } }
+
+  /* 平台 */
+  var platBox=$('plats');
+  PLATFORMS.forEach(function(p,i){
+    var b=document.createElement('button'); b.className='plat'+(i===0?' on':''); b.textContent=p.name;
+    b.addEventListener('click',function(){
+      state.platform=p;
+      Array.prototype.forEach.call(platBox.children,function(c){c.classList.remove('on');});
+      b.classList.add('on'); recompute(); renderTable();
+      if(state.sel>=0) showDetail(state.sel);
+    });
+    platBox.appendChild(b);
+  });
+
+  /* 上传 */
+  var input=document.createElement('input'); input.type='file'; input.accept='image/*'; input.multiple=true;
+  input.style.display='none'; document.body.appendChild(input);
+  $('drop').addEventListener('click',function(){ input.click(); });
+  $('drop').addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();} });
+  input.addEventListener('change',function(e){ addFiles(e.target.files); input.value=''; });
+  ['dragenter','dragover'].forEach(function(ev){ $('drop').addEventListener(ev,function(e){e.preventDefault();$('drop').classList.add('drag');}); });
+  ['dragleave','drop'].forEach(function(ev){ $('drop').addEventListener(ev,function(e){e.preventDefault();$('drop').classList.remove('drag');}); });
+  $('drop').addEventListener('drop',function(e){ if(e.dataTransfer&&e.dataTransfer.files) addFiles(e.dataTransfer.files); });
+
+  function addFiles(files){
+    var list=Array.prototype.filter.call(files,function(f){ return /^image\//.test(f.type); });
+    if(!list.length) return;
+    var pending=list.length;
+    list.forEach(function(file){
+      var url=URL.createObjectURL(file), img=new Image();
+      img.onload=function(){
+        state.items.push({ file:file, name:file.name, w:img.naturalWidth, h:img.naturalHeight,
+          mb:file.size/1048576, ext:(file.type.split('/')[1]||'').toUpperCase(), url:url, img:img });
+        state.items[state.items.length-1].thumb=url;
+        if(--pending===0){ recompute(); renderTable(); $('resultCard').hidden=false; }
+      };
+      img.onerror=function(){ if(--pending===0){ recompute(); renderTable(); $('resultCard').hidden=false; } };
+      img.src=url;
+    });
+  }
+
+  function judge(it){
+    var p=state.platform, tr=p.w/p.h, ar=it.w/it.h, diff=Math.abs(ar-tr)/tr;
+    var issues=[], sev='ok';
+    if(diff>0.06){ issues.push('比例差 '+Math.round(diff*100)+'%'); sev='bad'; }
+    else if(diff>0.02){ issues.push('比例差 '+(diff*100).toFixed(1)+'%'); if(sev==='ok') sev='warn'; }
+    if(it.w<p.w){ issues.push('宽度仅 '+it.w+'px'); if(sev!=='bad') sev='warn'; }
+    if(it.mb>MAX_MB){ issues.push('体积 '+it.mb.toFixed(1)+'MB'); if(sev!=='bad') sev='warn'; }
+    if(['JPEG','PNG','WEBP','GIF'].indexOf(it.ext)===-1){ issues.push('格式 '+it.ext); if(sev!=='bad') sev='warn'; }
+    it.sev=sev; it.issues=issues; it.ratioText=fmtRatio(it.w,it.h); it.diff=diff;
+  }
+  function recompute(){ state.items.forEach(judge); updateCounts(); }
+
+  function updateCounts(){
+    var all=state.items.length, ok=0,warn=0,bad=0;
+    state.items.forEach(function(i){ if(i.sev==='ok')ok++; else if(i.sev==='warn')warn++; else bad++; });
+    $('cntAll').textContent=all; $('cntOk').textContent=ok; $('cntWarn').textContent=warn; $('cntBad').textContent=bad;
+  }
+
+  function renderTable(){
+    var tb=$('tbody'); tb.innerHTML='';
+    state.items.forEach(function(it,idx){
+      var tr=document.createElement('tr');
+      if(idx===state.sel) tr.className='sel';
+      var tag = it.sev==='ok'?'通过':it.sev==='warn'?'提醒':'不合格';
+      tr.innerHTML='<td><img class="thumb" src="'+it.url+'" alt=""></td>'+
+        '<td class="name" title="'+it.name+'">'+it.name+'</td>'+
+        '<td>'+it.w+'×'+it.h+'</td>'+
+        '<td>'+it.ratioText+'</td>'+
+        '<td>'+it.mb.toFixed(2)+' MB</td>'+
+        '<td><span class="tag '+it.sev+'">'+tag+'</span></td>'+
+        '<td class="issues">'+(it.issues.length?it.issues.join('；'):'—')+'</td>';
+      tr.addEventListener('click',function(){ showDetail(idx); });
+      tb.appendChild(tr);
+    });
+  }
+
+  function showDetail(idx){
+    var it=state.items[idx]; if(!it) return;
+    state.sel=idx; renderTable();
+    $('detail').style.display='block';
+    $('detailTitle').textContent=it.name+' ｜ '+it.w+'×'+it.h+' px ｜ '+it.mb.toFixed(2)+' MB';
+
+    var p=state.platform, fr=p.w/p.h;
+    var W=Math.min(520, Math.round(fr>=1?520:520*fr)), H=Math.round(W/fr);
+    if(H>520){ H=520; W=Math.round(H*fr); }
+    canvas.width=W; canvas.height=H;
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+    var scale=Math.max(W/it.w,H/it.h), dw=it.w*scale, dh=it.h*scale;
+    var dx=(W-dw)/2, dy=(H-dh)/2;
+    ctx.drawImage(it.img,dx,dy,dw,dh);
+
+    var src=document.createElement('canvas'); src.width=W; src.height=H;
+    var sctx=src.getContext('2d',{willReadFrequently:true});
+    sctx.fillStyle='#fff'; sctx.fillRect(0,0,W,H);
+    sctx.drawImage(it.img,dx,dy,dw,dh);
+    try{ pixels=sctx.getImageData(0,0,W,H); }catch(e){ pixels=null; }
+
+    ctx.fillStyle='rgba(18,22,28,.62)';
+    if(dx<0){ ctx.fillRect(0,0,-dx,H); ctx.fillRect(W+dx,0,-dx,H); }
+    if(dy<0){ ctx.fillRect(0,0,W,-dy); ctx.fillRect(0,H+dy,W,-dy); }
+    ctx.setLineDash([6,5]); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.92)';
+    ctx.strokeRect(W*0.04,H*0.04,W*0.92,H*0.92); ctx.setLineDash([]);
+
+    var checks=[
+      {s:it.diff<=0.02?'ok':it.diff<=0.06?'warn':'bad', t:'比例', d:it.ratioText+' → 目标 '+fmtRatio(p.w,p.h)+'（偏差 '+(it.diff*100).toFixed(1)+'%）'},
+      {s:it.w>=p.w?'ok':'warn', t:'清晰度', d:it.w+'px 宽，建议 '+p.w+'px'},
+      {s:it.mb<=MAX_MB?'ok':'warn', t:'体积', d:it.mb.toFixed(2)+' MB（上限参考 '+MAX_MB+' MB）'},
+      {s:['JPEG','PNG','WEBP','GIF'].indexOf(it.ext)!==-1?'ok':'warn', t:'格式', d:it.ext}
+    ];
+    var ul=$('checkList'); ul.innerHTML='';
+    checks.forEach(function(c){
+      var li=document.createElement('li');
+      li.innerHTML='<span>'+(c.s==='ok'?'✅':c.s==='warn'?'⚠️':'❌')+'</span><span><b>'+c.t+'</b><br><span class="muted">'+c.d+'</span></span>';
+      ul.appendChild(li);
+    });
+    updateContrast();
+    $('detail').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function updateContrast(){
+    var r=contrast(parseHex($('fg').value), parseHex($('bg').value));
+    var label = r>=7?'（正文 AAA ✅）':r>=4.5?'（正文 AA ✅）':r>=3?'（仅大字 AA ⚠️）':'（不合格 ❌）';
+    $('cRatio').innerHTML=r.toFixed(2)+'<span class="muted" style="font-size:13px"> : 1</span> <span class="muted" style="font-size:13px">'+label+'</span>';
+  }
+  $('fg').addEventListener('input',updateContrast);
+  $('bg').addEventListener('input',updateContrast);
+
+  canvas.addEventListener('click',function(e){
+    if(!pixels) return;
+    var r=canvas.getBoundingClientRect();
+    var x=Math.floor((e.clientX-r.left)*(canvas.width/r.width));
+    var y=Math.floor((e.clientY-r.top)*(canvas.height/r.height));
+    if(x<0||y<0||x>=canvas.width||y>=canvas.height) return;
+    var i=(y*canvas.width+x)*4, d=pixels.data;
+    var hex=toHex(d[i],d[i+1],d[i+2]).toLowerCase();
+    $(pickMode).value=hex; pickMode=(pickMode==='fg')?'bg':'fg';
+    updateContrast(); toast('已取 '+hex.toUpperCase()+' → '+(pickMode==='fg'?'背景色':'文字色')+'（再点切换）');
+  });
+
+  function csvCell(v){ v=String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+  $('btnCsv').addEventListener('click',function(){
+    if(!state.items.length) return;
+    var head=['文件名','宽','高','比例','体积MB','格式','目标平台','判定','问题'];
+    var rows=state.items.map(function(it){
+      return [it.name,it.w,it.h,it.ratioText,it.mb.toFixed(2),it.ext,state.platform.name,
+        it.sev==='ok'?'通过':it.sev==='warn'?'提醒':'不合格', it.issues.join('；')];
+    });
+    var csv=[head].concat(rows).map(function(r){ return r.map(csvCell).join(','); }).join('\r\n');
+    var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='批量自检_'+state.platform.id+'_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+    toast('CSV 已导出');
+  });
+
+  $('btnCopyAll').addEventListener('click',function(){
+    if(!state.items.length) return;
+    var lines=['[批量自检] '+state.platform.name+' 共 '+state.items.length+' 张'];
+    state.items.forEach(function(it){
+      lines.push((it.sev==='ok'?'✅':it.sev==='warn'?'⚠️':'❌')+' '+it.name+'（'+it.w+'×'+it.h+'）：'+(it.issues.length?it.issues.join('；'):'通过'));
+    });
+    copyText(lines.join('\n'));
+  });
+
+  $('btnClear').addEventListener('click',function(){
+    state.items.forEach(function(it){ URL.revokeObjectURL(it.url); });
+    state.items=[]; state.sel=-1; $('resultCard').hidden=true; $('detail').style.display='none';
+    $('tbody').innerHTML=''; updateCounts();
+  });
+
+  updateContrast();
+})();
+</script>
+</body>
+</html>
