@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e2a52">
+<meta property="og:type" content="website">
+<meta property="og:title" content="海报/封面 交付自检 — 比例、裁切、对比度一次查完">
+<meta property="og:description" content="上传海报或封面图，5 秒出结论：比例对不对、发出去会被裁掉哪块、字够不够清楚、文件超没超限，并可导出交付报告。图片不上传。">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e2a52'/%3E%3Crect x='14' y='20' width='36' height='24' rx='3' fill='none' stroke='%2335b8be' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23f4f1ea'/%3E%3C/svg%3E">
+<title>海报/封面 交付自检 — 比例、裁切安全区、文字对比度一次查完</title>
+<meta name="description" content="上传海报或封面图，自动检查平台比例是否匹配、发出去会被裁掉哪一块、文字与背景的对比度是否达标（WCAG）、文件大小与格式是否超限，并可导出一页交付报告。全部在浏览器本地完成，图片不上传。">
+<style>
+  :root{
+    --ink:#12161c; --muted:#5b6673; --line:#e3e7ec; --bg:#f6f7f9; --card:#fff;
+    --brand:#0e2a52; --brand-2:#35b8be; --ok:#0f8a4d; --warn:#b7791f; --bad:#c0392b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased}
+  header{padding:26px 20px 8px; max-width:1120px; margin:0 auto}
+  h1{font-size:25px; line-height:1.3; margin:0 0 6px}
+  .sub{color:var(--muted); margin:0 0 10px}
+  .privacy{display:inline-block; font-size:13px; color:#0f8a4d; background:#e8f6ee; border:1px solid #c9e9d7;
+    padding:4px 10px; border-radius:999px}
+  main{max-width:1120px; margin:0 auto; padding:12px 20px 40px}
+  .grid{display:grid; gap:16px; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px}
+  .card h2{font-size:13px; letter-spacing:.05em; color:var(--muted); margin:0 0 12px; text-transform:uppercase}
+  #drop{border:2px dashed var(--line); border-radius:12px; min-height:260px; display:flex; align-items:center;
+    justify-content:center; text-align:center; color:var(--muted); cursor:pointer; padding:18px}
+  #drop.drag{border-color:var(--brand-2); background:#f3fbfb}
+  #stage{display:none; text-align:center}
+  canvas{max-width:100%; height:auto; border-radius:10px; cursor:crosshair; background:#fff}
+  .platforms{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px}
+  .plat{font-size:13px; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:#fff; cursor:pointer}
+  .plat.on{background:var(--brand); color:#fff; border-color:var(--brand)}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  button{font:inherit; border:1px solid var(--line); background:#fff; color:var(--ink); padding:8px 12px; border-radius:10px; cursor:pointer}
+  button:hover{background:#fafbfc}
+  button.primary{background:var(--brand); color:#fff; border-color:var(--brand)}
+  button.primary:hover{background:#0b2244}
+  button.ghost{border-style:dashed; color:var(--muted)}
+  button:disabled{opacity:.45; cursor:not-allowed}
+  .verdict{display:flex; align-items:center; gap:12px; padding:14px; border-radius:12px; border:1px solid var(--line); background:#fafbfc}
+  .verdict .score{font-size:30px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums}
+  .verdict .vt{font-size:17px; font-weight:600}
+  .verdict.pass{border-color:#c9e9d7; background:#eefaf3}
+  .verdict.warn{border-color:#f0e0c4; background:#fdf8ee}
+  .verdict.fail{border-color:#f5cfca; background:#fdeeec}
+  .checks{list-style:none; margin:12px 0 0; padding:0}
+  .checks li{display:grid; grid-template-columns:22px 1fr auto; gap:8px; padding:9px 0; border-top:1px solid #f0f2f5; align-items:start}
+  .checks li:first-child{border-top:0}
+  .checks .ic{font-size:14px; line-height:1.5}
+  .checks .nm{font-weight:600}
+  .checks .dt{color:var(--muted); font-size:13px}
+  .checks .tag{font-size:12px; padding:2px 8px; border-radius:999px; white-space:nowrap}
+  .tag.ok{color:var(--ok); background:#eaf7f0}
+  .tag.warn{color:var(--warn); background:#fdf5e6}
+  .tag.bad{color:var(--bad); background:#fdecea}
+  .swatch{height:54px; border-radius:10px; border:1px solid var(--line); margin:8px 0}
+  .pair{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .pair label{font-size:12px; color:var(--muted); display:block; margin-bottom:4px}
+  .pair input[type=color]{width:100%; height:40px; border:1px solid var(--line); border-radius:10px; background:#fff; padding:2px}
+  .ratio{font-size:30px; font-weight:700; margin:10px 0 0; font-variant-numeric:tabular-nums}
+  .ratio small{font-size:13px; font-weight:400; color:var(--muted)}
+  .muted{color:var(--muted); font-size:13px}
+  .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px); background:#12161c; color:#fff;
+    padding:9px 16px; border-radius:999px; font-size:13px; opacity:0; pointer-events:none; transition:.25s; z-index:99}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  section.docs{max-width:1120px; margin:0 auto; padding:0 20px 60px; color:#2b3440}
+  section.docs h2{font-size:19px; margin:26px 0 8px}
+  section.docs table{border-collapse:collapse; width:100%; max-width:680px; font-size:14px}
+  section.docs th, section.docs td{padding:7px 9px; border-bottom:1px solid #eef1f4; text-align:left}
+  details{border:1px solid var(--line); border-radius:10px; padding:10px 14px; background:#fff; margin:8px 0}
+  summary{cursor:pointer; font-weight:600}
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:0 20px 40px}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<header>
+  <h1>海报 / 封面 交付自检</h1>
+  <p class="sub">上传一张图，5 秒出结论：比例对不对、发出去会被裁掉哪块、字够不够清楚、文件超没超限 —— 顺手导出一页交付报告。</p>
+  <span class="privacy">🔒 图片只在你的浏览器里处理，不上传、不保存</span>
+</header>
+
+<main>
+  <div class="grid">
+    <section class="card">
+      <h2>1. 图片 + 目标平台</h2>
+      <div class="platforms" id="plats"></div>
+      <div id="drop" tabindex="0" role="button" aria-label="点击或拖入图片">
+        <div id="hint">
+          <p><strong>点击选择</strong>、拖入图片，或 <strong>Ctrl+V</strong> 粘贴截图</p>
+          <p class="muted">支持 jpg / png / webp / gif 首帧</p>
+        </div>
+        <div id="stage"><canvas id="canvas"></canvas></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="btnReset" class="ghost" hidden>换一张</button>
+        <span class="muted" id="imgInfo"></span>
+      </div>
+      <p class="muted" style="margin:10px 0 0">预览里<b style="color:#b7791f">压暗的区域会被裁掉</b>，虚线内是建议保留的安全边距。点图任意位置可取色。</p>
+    </section>
+
+    <div style="display:flex; flex-direction:column; gap:16px">
+      <section class="card">
+        <h2>2. 结论</h2>
+        <div class="verdict" id="verdict">
+          <div class="score" id="score">—</div>
+          <div><div class="vt" id="verdictText">先上传一张图</div><div class="muted" id="verdictSub">选好目标平台后自动检查</div></div>
+        </div>
+        <ul class="checks" id="checkList"></ul>
+      </section>
+
+      <section class="card">
+        <h2>3. 文字对比度（手动取色）</h2>
+        <div class="pair">
+          <div><label>文字色</label><input type="color" id="fg" value="#12161c"></div>
+          <div><label>背景色</label><input type="color" id="bg" value="#ffffff"></div>
+        </div>
+        <div class="ratio" id="cRatio">21.00<small> : 1</small></div>
+        <div class="row" style="margin-top:8px">
+          <span class="tag" id="cTag">正文 AA ✅</span>
+          <button id="btnSwap" class="ghost">对调</button>
+        </div>
+        <p class="muted" style="margin:8px 0 0">在图上点文字处 → 设为文字色；再点背景处 → 设为背景色。</p>
+      </section>
+
+      <section class="card">
+        <h2>4. 交付</h2>
+        <div class="row">
+          <button id="btnReport" class="primary" disabled>导出交付报告（PNG）</button>
+          <button id="btnCopy" class="ghost" disabled>复制问题清单</button>
+        </div>
+        <p class="muted" style="margin:8px 0 0">报告适合发客户 / 走审批时附上，证明「我查过了」。</p>
+      </section>
+    </div>
+  </div>
+</main>
+
+<section class="docs">
+  <h2>常用平台规格（参考值，以平台最新要求为准）</h2>
+  <table>
+    <tr><th>用途</th><th>建议比例</th><th>参考像素</th></tr>
+    <tr><td>小红书图文封面</td><td>3:4</td><td>1242 × 1660</td></tr>
+    <tr><td>公众号首图</td><td>2.35:1</td><td>900 × 383</td></tr>
+    <tr><td>朋友圈单图</td><td>1:1</td><td>1080 × 1080</td></tr>
+    <tr><td>视频号横版封面</td><td>16:9</td><td>1080 × 608</td></tr>
+    <tr><td>抖音竖版封面</td><td>9:16</td><td>1080 × 1920</td></tr>
+  </table>
+
+  <h2>它会查什么</h2>
+  <ul>
+    <li><b>比例</b>：和目标平台差多少，超过 2% 提醒、超过 6% 判定不合格（发出去必被裁）</li>
+    <li><b>裁切</b>：直接画出「哪一块会被切掉」，不用靠脑补</li>
+    <li><b>清晰度</b>：宽度够不够平台建议尺寸，太小会被放大发虚</li>
+    <li><b>文件</b>：格式、体积是否超常见上传限制</li>
+    <li><b>对比度</b>：文字压背景够不够清楚，按 WCAG AA / AAA 判</li>
+  </ul>
+
+  <h2>常见问题</h2>
+  <details><summary>为什么对比度要手动取色？</summary><p>工具不知道你的文案排版在哪、用了哪几个颜色。自动识别文字区域容易误判，所以让你点两下更可靠——比它猜错强。</p></details>
+  <details><summary>「会被裁掉」的区域准吗？</summary><p>按你选的平台比例做等比填充（cover）计算：图片比例和目标不一致时，多出来的部分就是会被裁的部分。平台若还叠加 UI 遮挡（如头像、标题栏），需要你按经验再留边。</p></details>
+  <details><summary>报告里的规格能直接交付客户吗？</summary><p>能，但注意标注「参考值」——各平台规则会变，正式对外交付建议核对平台最新文档。</p></details>
+</section>
+
+<footer>单文件工具，无需安装；数据不出本机。</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+
+  var PLATFORMS = [
+    { id:'xhs',   name:'小红书 3:4',       w:1242, h:1660 },
+    { id:'gzh',   name:'公众号首图 2.35:1', w:900,  h:383  },
+    { id:'moment',name:'朋友圈 1:1',        w:1080, h:1080 },
+    { id:'sph',   name:'视频号 16:9',       w:1080, h:608  },
+    { id:'dy',    name:'抖音 9:16',         w:1080, h:1920 }
+  ];
+  var MAX_MB = 10;
+
+  var state = {
+    img: null, file: null, platform: PLATFORMS[0],
+    pixels: null, canvasW: 0, canvasH: 0,
+    palette: [], contrast: 4.5, checks: [], overall: 'idle'
+  };
+
+  var drop = $('drop'), hint = $('hint'), stage = $('stage'), canvas = $('canvas');
+  var ctx = canvas.getContext('2d', { willReadFrequently:true });
+
+  function clamp(v,a,b){ return Math.min(b, Math.max(a,v)); }
+  function hex2(n){ var s=n.toString(16); return s.length===1?'0'+s:s; }
+  function toHex(r,g,b){ return '#'+hex2(r)+hex2(g)+hex2(b); }
+  function lum(r,g,b){
+    var f=function(c){ c/=255; return c<=0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055,2.4); };
+    return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b);
+  }
+  function contrastOf(c1,c2){
+    var l1=lum(c1.r,c1.g,c1.b), l2=lum(c2.r,c2.g,c2.b);
+    var hi=Math.max(l1,l2), lo=Math.min(l1,l2);
+    return (hi+0.05)/(lo+0.05);
+  }
+  function parseHex(h){
+    h=(h||'').trim().replace('#','');
+    if(/^[0-9a-f]{6}$/i.test(h)) return { r:parseInt(h.substr(0,2),16), g:parseInt(h.substr(2,2),16), b:parseInt(h.substr(4,2),16) };
+    if(/^[0-9a-f]{3}$/i.test(h)) return { r:parseInt(h[0]+h[0],16), g:parseInt(h[1]+h[1],16), b:parseInt(h[2]+h[2],16) };
+    return null;
+  }
+  var toastTimer=null;
+  function toast(msg){
+    var t=$('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove('show'); }, 1700);
+  }
+  function copyText(txt){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(function(){ toast('已复制'); }, function(){ fallbackCopy(txt); });
+    } else fallbackCopy(txt);
+  }
+  function fallbackCopy(txt){
+    var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('已复制'); }catch(e){ toast('复制失败'); }
+    document.body.removeChild(ta);
+  }
+
+  /* ---------- 平台选择 ---------- */
+  var platBox = $('plats');
+  PLATFORMS.forEach(function(p, i){
+    var b=document.createElement('button');
+    b.className='plat'+(i===0?' on':''); b.textContent=p.name;
+    b.addEventListener('click', function(){
+      state.platform=p;
+      Array.prototype.forEach.call(platBox.children, function(c){ c.classList.remove('on'); });
+      b.classList.add('on');
+      renderPreview(); runChecks();
+    });
+    platBox.appendChild(b);
+  });
+
+  /* ---------- 上传 ---------- */
+  var fileInput=document.createElement('input');
+  fileInput.type='file'; fileInput.accept='image/*'; fileInput.style.display='none';
+  document.body.appendChild(fileInput);
+  drop.addEventListener('click', function(){ if(stage.style.display!=='block') fileInput.click(); });
+  drop.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); drop.click(); } });
+  fileInput.addEventListener('change', function(e){
+    if(e.target.files && e.target.files[0]) loadFile(e.target.files[0]);
+    fileInput.value='';
+  });
+  ['dragenter','dragover'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('drag'); }); });
+  ['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('drag'); }); });
+  drop.addEventListener('drop', function(e){
+    var f=e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) loadFile(f);
+  });
+  document.addEventListener('paste', function(e){
+    var items=e.clipboardData && e.clipboardData.items; if(!items) return;
+    for(var i=0;i<items.length;i++){
+      if(items[i].type.indexOf('image')===0){
+        var f=items[i].getAsFile(); if(f){ loadFile(f); e.preventDefault(); } return;
+      }
+    }
+  });
+
+  function loadFile(file){
+    if(!file || !/^image\//.test(file.type)){ toast('请选择图片文件'); return; }
+    state.file=file;
+    var url=URL.createObjectURL(file), img=new Image();
+    img.onload=function(){
+      state.img=img;
+      renderPreview();
+      $('imgInfo').textContent = img.naturalWidth+' × '+img.naturalHeight+' px ｜ '+(file.size/1048576).toFixed(2)+' MB ｜ '+(file.type.split('/')[1]||'').toUpperCase();
+      runChecks();
+      URL.revokeObjectURL(url);
+    };
+    img.onerror=function(){ toast('这张图打不开'); URL.revokeObjectURL(url); };
+    img.src=url;
+  }
+
+  /* ---------- 预览（含裁切可视化） ---------- */
+  function renderPreview(){
+    if(!state.img) return;
+    hint.hidden=true; stage.style.display='block'; $('btnReset').hidden=false;
+
+    var p=state.platform, frameRatio=p.w/p.h;
+    var W=Math.min(520, Math.round(frameRatio>=1 ? 520 : 520*frameRatio));
+    var H=Math.round(W/frameRatio);
+    if(H>560){ H=560; W=Math.round(H*frameRatio); }
+    canvas.width=W; canvas.height=H;
+
+    ctx.save();
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+
+    // cover 绘制：目标框内等比填满，超出部分自然被裁掉
+    var iw=state.img.naturalWidth, ih=state.img.naturalHeight;
+    var scale=Math.max(W/iw, H/ih);
+    var dw=iw*scale, dh=ih*scale;
+    var dx=(W-dw)/2, dy=(H-dh)/2;
+    ctx.drawImage(state.img, dx, dy, dw, dh);
+
+    // 离屏画布：同样映射、但无遮罩 → 取色与主色统计用这张，避免被压暗区/虚线污染
+    var src=document.createElement('canvas');
+    src.width=W; src.height=H;
+    var sctx=src.getContext('2d',{willReadFrequently:true});
+    sctx.fillStyle='#ffffff'; sctx.fillRect(0,0,W,H);
+    sctx.drawImage(state.img, dx, dy, dw, dh);
+    state.srcCanvas=src;
+    try { state.pixels=sctx.getImageData(0,0,W,H); } catch(e){ state.pixels=null; }
+
+    // 压暗被裁掉的部分
+    ctx.fillStyle='rgba(18,22,28,.62)';
+    if(dx<0){ ctx.fillRect(0,0,-dx,H); ctx.fillRect(W+dx,0,-dx,H); }
+    if(dy<0){ ctx.fillRect(0,0,W,-dy); ctx.fillRect(0,H+dy,W,-dy); }
+
+    // 安全边距虚线（保留 92%）
+    ctx.restore();
+    ctx.save();
+    ctx.setLineDash([6,5]); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.92)';
+    var m=0.04;
+    ctx.strokeRect(W*m, H*m, W*(1-2*m), H*(1-2*m));
+    ctx.restore();
+
+    state.canvasW=W; state.canvasH=H;
+    extractPalette();
+  }
+
+  function extractPalette(){
+    if(!state.pixels) return;
+    var d=state.pixels.data, buckets={}, total=0;
+    for(var i=0;i<d.length;i+=4){
+      if(d[i+3]<200) continue;
+      var r=d[i], g=d[i+1], b=d[i+2];
+      var key=((r>>3)<<10)|((g>>3)<<5)|(b>>3);
+      var o=buckets[key];
+      if(!o) o=buckets[key]={c:0,r:0,g:0,b:0};
+      o.c++; o.r+=r; o.g+=g; o.b+=b; total++;
+    }
+    var arr=[];
+    for(var k in buckets){ var o2=buckets[k]; arr.push({ r:Math.round(o2.r/o2.c), g:Math.round(o2.g/o2.c), b:Math.round(o2.b/o2.c), pct:o2.c/total }); }
+    arr.sort(function(a,b){ return b.pct-a.pct; });
+    state.palette=arr.slice(0,6);
+  }
+
+  /* ---------- 检查 ---------- */
+  function runChecks(){
+    if(!state.img){ return; }
+    var p=state.platform, iw=state.img.naturalWidth, ih=state.img.naturalHeight;
+    var targetRatio=p.w/p.h, actualRatio=iw/ih;
+    var ratioDiff=Math.abs(actualRatio-targetRatio)/targetRatio;
+    var checks=[];
+
+    // 1 比例
+    if(ratioDiff<=0.02) checks.push({ s:'ok', name:'比例匹配', detail:'实际 '+fmtRatio(iw,ih)+'，目标 '+fmtRatio(p.w,p.h)+'，偏差 '+(ratioDiff*100).toFixed(1)+'%' });
+    else if(ratioDiff<=0.06) checks.push({ s:'warn', name:'比例略有偏差', detail:'偏差 '+(ratioDiff*100).toFixed(1)+'%，发出去边缘会被轻微裁掉' });
+    else checks.push({ s:'bad', name:'比例不符', detail:'实际 '+fmtRatio(iw,ih)+' vs 目标 '+fmtRatio(p.w,p.h)+'，偏差 '+(ratioDiff*100).toFixed(0)+'%，会明显被裁' });
+
+    // 2 清晰度
+    if(iw>=p.w) checks.push({ s:'ok', name:'尺寸够清晰', detail:iw+'px 宽 ≥ 建议 '+p.w+'px' });
+    else checks.push({ s:'warn', name:'尺寸偏小', detail:iw+'px 宽 < 建议 '+p.w+'px，可能被放大发虚' });
+
+    // 3 文件格式
+    var ext=(state.file.type.split('/')[1]||'').toLowerCase();
+    if(['jpeg','png','webp','gif'].indexOf(ext)!==-1) checks.push({ s:'ok', name:'格式可用', detail:ext.toUpperCase() });
+    else checks.push({ s:'warn', name:'格式少见', detail:ext+'，建议导出 JPG 或 PNG' });
+
+    // 4 文件体积
+    var mb=state.file.size/1048576;
+    if(mb<=MAX_MB) checks.push({ s:'ok', name:'体积正常', detail:mb.toFixed(2)+' MB ≤ '+MAX_MB+' MB' });
+    else checks.push({ s:'warn', name:'体积偏大', detail:mb.toFixed(2)+' MB > '+MAX_MB+' MB，建议压缩' });
+
+    // 5 对比度（手动）
+    if(state.contrast>=4.5) checks.push({ s:'ok', name:'文字对比度', detail:state.contrast.toFixed(2)+':1 ≥ 4.5:1（正文 AA）' });
+    else if(state.contrast>=3) checks.push({ s:'warn', name:'文字对比度偏低', detail:state.contrast.toFixed(2)+':1，只够大字 AA，正文不合格' });
+    else checks.push({ s:'bad', name:'文字对比度不足', detail:state.contrast.toFixed(2)+':1，小于 3:1，字会看不清' });
+
+    state.checks=checks;
+    var bad=checks.filter(function(c){ return c.s==='bad'; }).length;
+    var warn=checks.filter(function(c){ return c.s==='warn'; }).length;
+    state.overall = bad ? 'fail' : (warn ? 'warn' : 'pass');
+
+    var score=Math.max(0, 100 - bad*30 - warn*10);
+    $('score').textContent=score;
+    var vt=$('verdictText'), vs=$('verdictSub'), v=$('verdict');
+    v.className='verdict '+state.overall;
+    if(state.overall==='pass'){ vt.textContent='可以发'; vs.textContent='全部检查项通过'; }
+    else if(state.overall==='warn'){ vt.textContent='建议修一下再发'; vs.textContent=warn+' 个提醒项'; }
+    else { vt.textContent='先别发'; vs.textContent=bad+' 个不合格项'; }
+
+    var list=$('checkList'); list.innerHTML='';
+    checks.forEach(function(c){
+      var li=document.createElement('li');
+      li.innerHTML='<span class="ic">'+(c.s==='ok'?'✅':c.s==='warn'?'⚠️':'❌')+'</span>'+
+        '<span><span class="nm">'+c.name+'</span><br><span class="dt">'+c.detail+'</span></span>'+
+        '<span class="tag '+(c.s==='ok'?'ok':c.s==='warn'?'warn':'bad')+'">'+
+        (c.s==='ok'?'通过':c.s==='warn'?'提醒':'不合格')+'</span>';
+      list.appendChild(li);
+    });
+
+    $('btnReport').disabled=false; $('btnCopy').disabled=false;
+  }
+
+  function fmtRatio(w,h){
+    var r=w/h;
+    var known=[[1,'1:1'],[3/4,'3:4'],[4/3,'4:3'],[16/9,'16:9'],[9/16,'9:16'],[2.35,'2.35:1']];
+    for(var i=0;i<known.length;i++){
+      if(Math.abs(r-known[i][0])/known[i][0] < 0.02) return known[i][1];
+    }
+    return r>=1 ? (r.toFixed(2)+':1') : ('1:'+(1/r).toFixed(2));
+  }
+
+  /* ---------- 取色 ---------- */
+  canvas.addEventListener('click', function(e){
+    if(!state.pixels) return;
+    var r=canvas.getBoundingClientRect();
+    var x=Math.floor((e.clientX-r.left)*(canvas.width/r.width));
+    var y=Math.floor((e.clientY-r.top)*(canvas.height/r.height));
+    if(x<0||y<0||x>=canvas.width||y>=canvas.height) return;
+    var i=(y*canvas.width+x)*4, d=state.pixels.data;
+    var hex=toHex(d[i],d[i+1],d[i+2]).toUpperCase();
+    var mode=window.__pickMode||'fg';
+    $(mode).value=hex.toLowerCase();
+    window.__pickMode = (mode==='fg') ? 'bg' : 'fg';
+    updateContrast();
+    toast('已取 ' + hex + ' → ' + (mode==='fg'?'文字色':'背景色') + '（再点一次改为取另一种）');
+  });
+
+  /* ---------- 对比度 ---------- */
+  function updateContrast(){
+    var fg=parseHex($('fg').value), bg=parseHex($('bg').value);
+    if(!fg||!bg) return;
+    var r=contrastOf(fg,bg);
+    state.contrast=r;
+    $('cRatio').innerHTML=r.toFixed(2)+'<small> : 1</small>';
+    var tag=$('cTag');
+    if(r>=7){ tag.textContent='正文 AAA ✅'; tag.className='tag ok'; }
+    else if(r>=4.5){ tag.textContent='正文 AA ✅'; tag.className='tag ok'; }
+    else if(r>=3){ tag.textContent='仅大字 AA ⚠️'; tag.className='tag warn'; }
+    else { tag.textContent='不合格 ❌'; tag.className='tag bad'; }
+    if(state.img) runChecks();
+  }
+  $('fg').addEventListener('input', updateContrast);
+  $('bg').addEventListener('input', updateContrast);
+  $('btnSwap').addEventListener('click', function(){
+    var a=$('fg').value; $('fg').value=$('bg').value; $('bg').value=a; updateContrast();
+  });
+  $('btnReset').addEventListener('click', function(e){
+    e.stopPropagation();
+    state.img=null; state.file=null; state.pixels=null; state.palette=[]; state.checks=[];
+    stage.style.display='none'; hint.hidden=false; $('btnReset').hidden=true;
+    $('imgInfo').textContent=''; $('btnReport').disabled=true; $('btnCopy').disabled=true;
+    $('score').textContent='—'; $('verdictText').textContent='先上传一张图';
+    $('verdictSub').textContent='选好目标平台后自动检查'; $('verdict').className='verdict';
+    $('checkList').innerHTML='';
+  });
+
+  /* ---------- 交付：报告 PNG ---------- */
+  $('btnReport').addEventListener('click', function(){
+    if(!state.img) return;
+    var W=900, H=1120;
+    var c=document.createElement('canvas'); c.width=W; c.height=H;
+    var g=c.getContext('2d');
+    g.fillStyle='#ffffff'; g.fillRect(0,0,W,H);
+    g.fillStyle='#12161c'; g.font='bold 34px -apple-system,"PingFang SC",sans-serif';
+    g.fillText('海报 / 封面 交付自检报告', 60, 92);
+    g.fillStyle='#5b6673'; g.font='16px -apple-system,"PingFang SC",sans-serif';
+    g.fillText('生成时间：'+new Date().toLocaleString('zh-CN'), 60, 126);
+
+    // 结论
+    var color = state.overall==='pass' ? '#0f8a4d' : state.overall==='warn' ? '#b7791f' : '#c0392b';
+    g.fillStyle=color; g.font='bold 26px -apple-system,"PingFang SC",sans-serif';
+    g.fillText(state.overall==='pass'?'结论：可以发':state.overall==='warn'?'结论：建议修改':'结论：暂不可发', 60, 186);
+
+    // 基本信息
+    g.fillStyle='#12161c'; g.font='16px -apple-system,"PingFang SC",sans-serif';
+    g.fillText('目标平台：'+state.platform.name+'（建议 '+state.platform.w+'×'+state.platform.h+'）', 60, 230);
+    g.fillText('图片尺寸：'+state.img.naturalWidth+'×'+state.img.naturalHeight+' px　文件：'+(state.file?(state.file.size/1048576).toFixed(2):'-')+' MB', 60, 260);
+
+    // 检查项
+    var y=320;
+    g.font='18px -apple-system,"PingFang SC",sans-serif';
+    state.checks.forEach(function(ck){
+      g.fillStyle = ck.s==='ok' ? '#0f8a4d' : ck.s==='warn' ? '#b7791f' : '#c0392b';
+      g.fillText(ck.s==='ok'?'✓':ck.s==='warn'?'!':'✕', 60, y);
+      g.fillStyle='#12161c'; g.font='bold 17px -apple-system,"PingFang SC",sans-serif';
+      g.fillText(ck.name, 88, y);
+      g.fillStyle='#5b6673'; g.font='15px -apple-system,"PingFang SC",sans-serif';
+      g.fillText(ck.detail, 88, y+24);
+      y+=64;
+    });
+
+    // 主色
+    y+=10;
+    g.fillStyle='#12161c'; g.font='bold 17px -apple-system,"PingFang SC",sans-serif';
+    g.fillText('主色（按像素占比）', 60, y); y+=24;
+    state.palette.forEach(function(c2,i){
+      var hx=toHex(c2.r,c2.g,c2.b).toUpperCase();
+      g.fillStyle=hx; g.fillRect(60+i*140, y, 120, 70);
+      g.strokeStyle='#e3e7ec'; g.strokeRect(60+i*140, y, 120, 70);
+      g.fillStyle='#12161c'; g.font='13px -apple-system,"PingFang SC",sans-serif';
+      g.fillText(hx, 60+i*140, y+92);
+      g.fillStyle='#5b6673'; g.fillText((c2.pct*100).toFixed(1)+'%', 60+i*140, y+112);
+    });
+
+    // 对比度
+    y+=150;
+    g.fillStyle='#12161c'; g.font='bold 17px -apple-system,"PingFang SC",sans-serif';
+    g.fillText('文字对比度：'+state.contrast.toFixed(2)+':1（WCAG 正文 AA 需 ≥ 4.5:1）', 60, y);
+
+    g.fillStyle='#8a94a1'; g.font='13px -apple-system,"PingFang SC",sans-serif';
+    g.fillText('平台规格为常用参考值，正式交付请核对平台最新要求。本报告由浏览器本地生成，图片未上传。', 60, H-50);
+
+    var a=document.createElement('a');
+    a.download='交付自检报告_'+Date.now()+'.png';
+    a.href=c.toDataURL('image/png');
+    a.click();
+    toast('报告已生成');
+  });
+
+  $('btnCopy').addEventListener('click', function(){
+    var lines=['[交付自检] '+state.platform.name];
+    state.checks.forEach(function(c){ lines.push((c.s==='ok'?'✅':c.s==='warn'?'⚠️':'❌')+' '+c.name+'：'+c.detail); });
+    lines.push('文字对比度：'+state.contrast.toFixed(2)+':1');
+    copyText(lines.join('\n'));
+  });
+
+  updateContrast();
+})();
+</script>
+</body>
+</html>
